@@ -103,6 +103,11 @@
 			<artifactId>javax.ws.rs-api</artifactId>
 			<version>2.1</version>
 		</dependency>
+<!-- 		added it couse of problem with UriBuilder -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jersey</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

@@ -11,18 +11,20 @@ import javax.ws.rs.core.UriBuilder;
 
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 
 public class AuthHelper {
-	private static final String authority = "https://login.microsoftonline.com";
-	private static final String authorizeUrl = authority + "/common/oauth2/v2.0/authorize";
+	private static final String authority = "https://allegro.pl";
+	private static final String authorizeUrl = authority + "/auth/oauth/authorize";
 	
 	private static String clientId = null;
 	private static String apiKey = null;
 	private static String redirectUri = null;
+	private static String responseType = null;
 	
-	private static String getAppId() {
+	private static String getClientId() {
 		if (clientId == null) {
 			try {
 				loadConfig();
@@ -33,7 +35,7 @@ public class AuthHelper {
 		return clientId;
 	}
 	
-	private static String getAppPassword() {
+	private static String getApiKey() {
 		if (apiKey == null) {
 			try {
 				loadConfig();
@@ -63,6 +65,7 @@ public class AuthHelper {
 			Properties authProps = new Properties();
 			try {
 				authProps.load(authConfigStream);
+				responseType = authProps.getProperty("reponseType");
 				clientId = authProps.getProperty("clientId");
 				apiKey = authProps.getProperty("apiKey");
 				redirectUri = authProps.getProperty("redirectUri");
@@ -75,20 +78,31 @@ public class AuthHelper {
 		}
 	}
 	
-	public static String getLoginUrl(UUID state, UUID nonce) {
+	private static String getResponseType() {
+		if (responseType == null) {
+			try {
+				loadConfig();
+			} catch (Exception e) {
+				return null;
+			}
+		}
+		return responseType;
+	}
+
+	
+	public static String getLoginUrl() {
 		
 		UriBuilder urlBuilder = UriBuilder.fromPath(authorizeUrl);
-		urlBuilder.queryParam("client_id", getAppId());
+		urlBuilder.queryParam("response_type", getResponseType());
+		urlBuilder.queryParam("client_id", getClientId());
+		urlBuilder.queryParam("api-key", getApiKey());
 		urlBuilder.queryParam("redirect_uri", getRedirectUrl());
-		urlBuilder.queryParam("response_type", "code id_token");
-		urlBuilder.queryParam("state", state);
-		urlBuilder.queryParam("nonce", nonce);
-		urlBuilder.queryParam("response_mode", "form_post");
 		
 		return urlBuilder.toTemplate();
 	}
 	
-	public static TokenResponse getTokenFromAuthCode(String authCode, String tenantId) {
+	
+	public static TokenResponse getTokenFromAuthCode(String authCode) {
 		// Create a logging interceptor to log request and responses
 		HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
 		interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
@@ -107,12 +121,11 @@ public class AuthHelper {
 		TokenService tokenService = retrofit.create(TokenService.class);
 		
 		try {
-			return tokenService.getAccessTokenFromAuthCode(tenantId, getAppId(), getAppPassword(), 
-					"authorization_code", authCode, getRedirectUrl()).execute().body();
+			String grantType = "authorization_code";
+			Response<TokenResponse> execute = tokenService.getAccessTokenFromAuthCode(grantType, authCode, getApiKey(), getRedirectUrl()).execute();
+			return execute.body();
 		} catch (IOException e) {
 			TokenResponse error = new TokenResponse();
-			error.setError("IOException");
-			error.setErrorDescription(e.getMessage());
 			return error;
 		}
 	}
@@ -144,12 +157,10 @@ public class AuthHelper {
 			TokenService tokenService = retrofit.create(TokenService.class);
 			
 			try {
-				return tokenService.getAccessTokenFromRefreshToken(tenantId, getAppId(), getAppPassword(), 
+				return tokenService.getAccessTokenFromRefreshToken(tenantId, getClientId(), getApiKey(), 
 						"refresh_token", tokens.getRefreshToken(), getRedirectUrl()).execute().body();
 			} catch (IOException e) {
 				TokenResponse error = new TokenResponse();
-				error.setError("IOException");
-				error.setErrorDescription(e.getMessage());
 				return error;
 			}
 		}

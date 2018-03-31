@@ -1,4 +1,4 @@
-package pl.kamilszopa.allegroauctioner;
+package pl.kamilszopa;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
